@@ -1,13 +1,13 @@
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
+import math
 
 app = FastAPI(
-    title="FamilyReady Safe Places API",
+    title="FamilyReady API",
     version="1.0.0"
 )
 
-# Allow your frontend to connect
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,10 +17,6 @@ app.add_middleware(
 )
 
 
-# --------------------------------------------------
-# Home
-# --------------------------------------------------
-
 @app.get("/")
 def home():
     return {
@@ -29,10 +25,6 @@ def home():
     }
 
 
-# --------------------------------------------------
-# Health Check
-# --------------------------------------------------
-
 @app.get("/health")
 def health():
     return {
@@ -40,9 +32,24 @@ def health():
     }
 
 
-# --------------------------------------------------
-# Find Real Nearby Safe Places
-# --------------------------------------------------
+def calculate_distance(lat1, lon1, lat2, lon2):
+
+    R = 6371
+
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(dlon / 2) ** 2
+    )
+
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    return R * c
+
 
 @app.get("/api/safe-places")
 async def get_safe_places(
@@ -50,24 +57,15 @@ async def get_safe_places(
     lng: float = Query(...)
 ):
 
-    # OpenStreetMap Overpass query
     query = f"""
     [out:json][timeout:30];
 
     (
-        node["amenity"="hospital"](around:5000,{lat},{lng});
-        way["amenity"="hospital"](around:5000,{lat},{lng});
-
-        node["amenity"="police"](around:5000,{lat},{lng});
-        way["amenity"="police"](around:5000,{lat},{lng});
-
-        node["amenity"="fire_station"](around:5000,{lat},{lng});
-        way["amenity"="fire_station"](around:5000,{lat},{lng});
-
-        node["amenity"="shelter"](around:5000,{lat},{lng});
-        way["amenity"="shelter"](around:5000,{lat},{lng});
-
-        node["emergency"="assembly_point"](around:5000,{lat},{lng});
+        nwr["amenity"="hospital"](around:10000,{lat},{lng});
+        nwr["amenity"="police"](around:10000,{lat},{lng});
+        nwr["amenity"="fire_station"](around:10000,{lat},{lng});
+        nwr["amenity"="shelter"](around:10000,{lat},{lng});
+        nwr["emergency"="assembly_point"](around:10000,{lat},{lng});
     );
 
     out center tags;
@@ -77,18 +75,18 @@ async def get_safe_places(
 
     try:
 
-        async with httpx.AsyncClient(timeout=40) as client:
+        async with httpx.AsyncClient(timeout=60) as client:
 
-            response = await client.post(
+            response = await client.get(
                 url,
-                data=query
+                params={"data": query}
             )
 
         if response.status_code != 200:
 
             return {
                 "success": False,
-                "message": "OpenStreetMap service error",
+                "message": "OpenStreetMap Overpass API error",
                 "status_code": response.status_code
             }
 
@@ -100,13 +98,11 @@ async def get_safe_places(
 
             tags = element.get("tags", {})
 
-            # Node coordinates
             if "lat" in element and "lon" in element:
 
                 place_lat = element["lat"]
                 place_lng = element["lon"]
 
-            # Way coordinates
             elif "center" in element:
 
                 place_lat = element["center"]["lat"]
@@ -115,48 +111,53 @@ async def get_safe_places(
             else:
                 continue
 
-            # Determine type
-            if tags.get("amenity") == "hospital":
-                place_type = "hospital"
+            amenity = tags.get("amenity")
+            emergency = tags.get("emergency")
+
+            if amenity == "hospital":
+
+                place_type = "Hospital"
                 icon = "🏥"
 
-            elif tags.get("amenity") == "police":
-                place_type = "police"
+            elif amenity == "police":
+
+                place_type = "Police Station"
                 icon = "👮"
 
-            elif tags.get("amenity") == "fire_station":
-                place_type = "fire_station"
+            elif amenity == "fire_station":
+
+                place_type = "Fire Station"
                 icon = "🚒"
 
-            elif tags.get("amenity") == "shelter":
-                place_type = "shelter"
+            elif amenity == "shelter":
+
+                place_type = "Emergency Shelter"
                 icon = "🏠"
 
-            elif tags.get("emergency") == "assembly_point":
-                place_type = "assembly_point"
+            elif emergency == "assembly_point":
+
+                place_type = "Assembly Point"
                 icon = "📍"
 
             else:
-                place_type = "safe_place"
-                icon = "📍"
+                continue
 
-            # Name
             name = tags.get(
                 "name",
-                "Unnamed Safe Place"
+                place_type
             )
 
-            # Address
             address_parts = []
 
             for key in [
                 "addr:housenumber",
                 "addr:street",
+                "addr:suburb",
                 "addr:city",
                 "addr:postcode"
             ]:
 
-                if key in tags:
+                if tags.get(key):
                     address_parts.append(tags[key])
 
             address = ", ".join(address_parts)
@@ -164,32 +165,63 @@ async def get_safe_places(
             if not address:
                 address = "Address not available"
 
+            distance = calculate_distance(
+                lat,
+                lng,
+                place_lat,
+                place_lng
+            )
+
             places.append({
+
                 "name": name,
+
                 "type": place_type,
+
                 "icon": icon,
+
                 "latitude": place_lat,
+
                 "longitude": place_lng,
-                "address": address
+
+                "address": address,
+
+                "distance_km": round(distance, 2)
+
             })
 
+        places.sort(
+            key=lambda x: x["distance_km"]
+        )
+
         return {
+
             "success": True,
+
             "count": len(places),
+
             "places": places
+
         }
 
     except httpx.TimeoutException:
 
         return {
+
             "success": False,
-            "message": "OpenStreetMap request timed out"
+
+            "message": "Overpass API request timed out"
+
         }
 
     except Exception as e:
 
         return {
+
             "success": False,
+
             "message": "Backend error",
+
             "details": str(e)
+
         }
