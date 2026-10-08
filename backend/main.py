@@ -1,29 +1,13 @@
-import os
-import httpx
-
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
-
-
-# Load environment variables
-load_dotenv()
-
-# --------------------------------------------------
-# FastAPI App
-# --------------------------------------------------
+import httpx
 
 app = FastAPI(
-    title="FamilyReady Backend",
-    description="Emergency Safe Places API",
+    title="FamilyReady Safe Places API",
     version="1.0.0"
 )
 
-
-# --------------------------------------------------
-# CORS
-# --------------------------------------------------
-
+# Allow your frontend to connect
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -34,18 +18,7 @@ app.add_middleware(
 
 
 # --------------------------------------------------
-# Google Places API
-# --------------------------------------------------
-
-GOOGLE_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
-
-GOOGLE_PLACES_URL = (
-    "https://places.googleapis.com/v1/places:searchNearby"
-)
-
-
-# --------------------------------------------------
-# Home Route
+# Home
 # --------------------------------------------------
 
 @app.get("/")
@@ -68,132 +41,138 @@ def health():
 
 
 # --------------------------------------------------
-# Safe Places
+# Find Real Nearby Safe Places
 # --------------------------------------------------
 
 @app.get("/api/safe-places")
 async def get_safe_places(
-    lat: float = Query(..., description="User latitude"),
-    lng: float = Query(..., description="User longitude")
+    lat: float = Query(...),
+    lng: float = Query(...)
 ):
 
-    # Check API key
-    if not GOOGLE_API_KEY:
-        return {
-            "success": False,
-            "message": "Google Maps API key is not configured"
-        }
+    # OpenStreetMap Overpass query
+    query = f"""
+    [out:json][timeout:30];
 
-    # Google Places request
-    request_body = {
-        "includedTypes": [
-            "hospital",
-            "police",
-            "fire_station"
-        ],
+    (
+        node["amenity"="hospital"](around:5000,{lat},{lng});
+        way["amenity"="hospital"](around:5000,{lat},{lng});
 
-        "maxResultCount": 20,
+        node["amenity"="police"](around:5000,{lat},{lng});
+        way["amenity"="police"](around:5000,{lat},{lng});
 
-        "rankPreference": "DISTANCE",
+        node["amenity"="fire_station"](around:5000,{lat},{lng});
+        way["amenity"="fire_station"](around:5000,{lat},{lng});
 
-        "locationRestriction": {
-            "circle": {
-                "center": {
-                    "latitude": lat,
-                    "longitude": lng
-                },
-                "radius": 5000
-            }
-        }
-    }
+        node["amenity"="shelter"](around:5000,{lat},{lng});
+        way["amenity"="shelter"](around:5000,{lat},{lng});
 
-    # Required Google headers
-    headers = {
-        "Content-Type": "application/json",
+        node["emergency"="assembly_point"](around:5000,{lat},{lng});
+    );
 
-        "X-Goog-Api-Key": GOOGLE_API_KEY,
+    out center tags;
+    """
 
-        "X-Goog-FieldMask": (
-            "places.displayName,"
-            "places.formattedAddress,"
-            "places.location,"
-            "places.primaryType,"
-            "places.googleMapsUri"
-        )
-    }
+    url = "https://overpass-api.de/api/interpreter"
 
     try:
 
-        # Send request to Google
-        async with httpx.AsyncClient(timeout=20) as client:
+        async with httpx.AsyncClient(timeout=40) as client:
 
             response = await client.post(
-                GOOGLE_PLACES_URL,
-                json=request_body,
-                headers=headers
+                url,
+                data=query
             )
 
-        # Google API error
         if response.status_code != 200:
 
             return {
                 "success": False,
-                "message": "Google Places API returned an error",
-                "status_code": response.status_code,
-                "details": response.text
+                "message": "OpenStreetMap service error",
+                "status_code": response.status_code
             }
 
         data = response.json()
 
         places = []
 
-        # Process Google results
-        for place in data.get("places", []):
+        for element in data.get("elements", []):
 
-            display_name = place.get(
-                "displayName",
-                {}
-            ).get(
-                "text",
-                "Unknown Place"
-            )
+            tags = element.get("tags", {})
 
-            location = place.get(
-                "location",
-                {}
-            )
+            # Node coordinates
+            if "lat" in element and "lon" in element:
 
-            latitude = location.get("latitude")
-            longitude = location.get("longitude")
+                place_lat = element["lat"]
+                place_lng = element["lon"]
 
-            if latitude is None or longitude is None:
+            # Way coordinates
+            elif "center" in element:
+
+                place_lat = element["center"]["lat"]
+                place_lng = element["center"]["lon"]
+
+            else:
                 continue
 
-            place_type = place.get(
-                "primaryType",
-                "safe_place"
+            # Determine type
+            if tags.get("amenity") == "hospital":
+                place_type = "hospital"
+                icon = "🏥"
+
+            elif tags.get("amenity") == "police":
+                place_type = "police"
+                icon = "👮"
+
+            elif tags.get("amenity") == "fire_station":
+                place_type = "fire_station"
+                icon = "🚒"
+
+            elif tags.get("amenity") == "shelter":
+                place_type = "shelter"
+                icon = "🏠"
+
+            elif tags.get("emergency") == "assembly_point":
+                place_type = "assembly_point"
+                icon = "📍"
+
+            else:
+                place_type = "safe_place"
+                icon = "📍"
+
+            # Name
+            name = tags.get(
+                "name",
+                "Unnamed Safe Place"
             )
 
-            address = place.get(
-                "formattedAddress",
-                "Address unavailable"
-            )
+            # Address
+            address_parts = []
 
-            google_maps_uri = place.get(
-                "googleMapsUri",
-                ""
-            )
+            for key in [
+                "addr:housenumber",
+                "addr:street",
+                "addr:city",
+                "addr:postcode"
+            ]:
+
+                if key in tags:
+                    address_parts.append(tags[key])
+
+            address = ", ".join(address_parts)
+
+            if not address:
+                address = "Address not available"
 
             places.append({
-                "name": display_name,
+                "name": name,
                 "type": place_type,
-                "latitude": latitude,
-                "longitude": longitude,
-                "address": address,
-                "googleMapsUri": google_maps_uri
+                "icon": icon,
+                "latitude": place_lat,
+                "longitude": place_lng,
+                "address": address
             })
 
-        # Return data to frontend
         return {
             "success": True,
             "count": len(places),
@@ -204,7 +183,7 @@ async def get_safe_places(
 
         return {
             "success": False,
-            "message": "Google Places API request timed out"
+            "message": "OpenStreetMap request timed out"
         }
 
     except Exception as e:
