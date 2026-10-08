@@ -71,16 +71,41 @@ async def get_safe_places(
     out center tags;
     """
 
-    url = "https://overpass-api.de/api/interpreter"
+OVERPASS_SERVERS = [
+    "https://overpass.private.coffee/api/interpreter",
+    "https://overpass-api.de/api/interpreter"
+]
+
+data = None
+
+for url in OVERPASS_SERVERS:
 
     try:
-
         async with httpx.AsyncClient(timeout=60) as client:
 
-            response = await client.get(
+            response = await client.post(
                 url,
-                params={"data": query}
+                data={"data": query},
+                headers={
+                    "User-Agent": "FamilyReady/1.0"
+                }
             )
+
+        if response.status_code == 200:
+            data = response.json()
+            break
+
+        print("Overpass error:", response.status_code)
+
+    except Exception as e:
+        print("Overpass connection failed:", url, e)
+
+
+if data is None:
+    return {
+        "success": False,
+        "message": "Could not connect to OpenStreetMap Overpass servers"
+    }
 
         if response.status_code != 200:
 
