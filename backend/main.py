@@ -27,9 +27,7 @@ def home():
 
 @app.get("/health")
 def health():
-    return {
-        "status": "healthy"
-    }
+    return {"status": "healthy"}
 
 
 def calculate_distance(lat1, lon1, lat2, lon2):
@@ -44,6 +42,15 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     )
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
+
+
+# Multiple Overpass mirrors — first one that responds wins
+OVERPASS_SERVERS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.osm.ch/api/interpreter",
+    "https://overpass.openstreetmap.ru/api/interpreter",
+]
 
 
 @app.get("/api/safe-places")
@@ -65,45 +72,50 @@ async def get_safe_places(
     out center tags;
     """
 
-    OVERPASS_SERVERS = [
-        "https://overpass.private.coffee/api/interpreter",
-        "https://overpass-api.de/api/interpreter"
-    ]
-
     data = None
+    errors = []
 
-    # Try each Overpass server until one works
+    # Try each mirror
     for url in OVERPASS_SERVERS:
         try:
-            async with httpx.AsyncClient(timeout=60) as client:
+            print(f"Trying Overpass: {url}")
+            async with httpx.AsyncClient(timeout=45) as client:
                 response = await client.post(
                     url,
                     data={"data": query},
-                    headers={"User-Agent": "FamilyReady/1.0"}
+                    headers={
+                        "User-Agent": "FamilyReady/1.0 (emergency preparedness app)",
+                        "Accept": "application/json",
+                    },
                 )
+
+            print(f"  → {url} returned {response.status_code}")
 
             if response.status_code == 200:
                 data = response.json()
                 break
             else:
-                print(f"Overpass error at {url}: {response.status_code}")
+                errors.append(f"{url}: HTTP {response.status_code}")
 
+        except httpx.TimeoutException:
+            errors.append(f"{url}: timeout")
+            print(f"  → {url} timed out")
         except Exception as e:
-            print(f"Overpass connection failed at {url}: {e}")
+            errors.append(f"{url}: {str(e)[:80]}")
+            print(f"  → {url} failed: {e}")
 
     if data is None:
         return {
             "success": False,
-            "message": "Could not connect to OpenStreetMap Overpass servers"
+            "message": "Could not connect to OpenStreetMap Overpass servers",
+            "errors": errors,
         }
 
-    # Parse the Overpass response into a clean list of places
+    # Parse results
     places = []
-
     for element in data.get("elements", []):
         tags = element.get("tags", {})
 
-        # Get coordinates (node = lat/lon, way/relation = center)
         if "lat" in element and "lon" in element:
             place_lat = element["lat"]
             place_lng = element["lon"]
@@ -117,40 +129,28 @@ async def get_safe_places(
         emergency = tags.get("emergency")
 
         if amenity == "hospital":
-            place_type = "Hospital"
-            icon = "🏥"
+            place_type, icon = "Hospital", "🏥"
         elif amenity == "police":
-            place_type = "Police Station"
-            icon = "👮"
+            place_type, icon = "Police Station", "👮"
         elif amenity == "fire_station":
-            place_type = "Fire Station"
-            icon = "🚒"
+            place_type, icon = "Fire Station", "🚒"
         elif amenity == "shelter":
-            place_type = "Emergency Shelter"
-            icon = "🏠"
+            place_type, icon = "Emergency Shelter", "🏠"
         elif emergency == "assembly_point":
-            place_type = "Assembly Point"
-            icon = "📍"
+            place_type, icon = "Assembly Point", "📍"
         else:
             continue
 
         name = tags.get("name", place_type)
 
-        # Build address from available tags
         address_parts = []
         for key in [
-            "addr:housenumber",
-            "addr:street",
-            "addr:suburb",
-            "addr:city",
-            "addr:postcode"
+            "addr:housenumber", "addr:street", "addr:suburb",
+            "addr:city", "addr:postcode"
         ]:
             if tags.get(key):
                 address_parts.append(tags[key])
-
-        address = ", ".join(address_parts)
-        if not address:
-            address = "Address not available"
+        address = ", ".join(address_parts) or "Address not available"
 
         distance = calculate_distance(lat, lng, place_lat, place_lng)
 
@@ -161,14 +161,13 @@ async def get_safe_places(
             "latitude": place_lat,
             "longitude": place_lng,
             "address": address,
-            "distance_km": round(distance, 2)
+            "distance_km": round(distance, 2),
         })
 
-    # Sort by nearest first
     places.sort(key=lambda x: x["distance_km"])
 
     return {
         "success": True,
         "count": len(places),
-        "places": places
+        "places": places,
     }
