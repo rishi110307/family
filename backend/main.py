@@ -17,6 +17,9 @@ app.add_middleware(
 )
 
 
+# =====================================================
+# HOME
+# =====================================================
 @app.get("/")
 def home():
     return {
@@ -25,11 +28,17 @@ def home():
     }
 
 
+# =====================================================
+# HEALTH
+# =====================================================
 @app.get("/health")
 def health():
     return {"status": "healthy"}
 
 
+# =====================================================
+# DISTANCE HELPER
+# =====================================================
 def calculate_distance(lat1, lon1, lat2, lon2):
     R = 6371
     dlat = math.radians(lat2 - lat1)
@@ -44,15 +53,9 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     return R * c
 
 
-# Multiple Overpass mirrors — first one that responds wins
-OVERPASS_SERVERS = [
-    "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
-    "https://overpass.osm.ch/api/interpreter",
-    "https://overpass.openstreetmap.ru/api/interpreter",
-]
-
-
+# =====================================================
+# SAFE PLACES (existing)
+# =====================================================
 @app.get("/api/safe-places")
 async def get_safe_places(
     lat: float = Query(...),
@@ -72,46 +75,34 @@ async def get_safe_places(
     out center tags;
     """
 
-    data = None
-    errors = []
+    OVERPASS_SERVERS = [
+        "https://overpass.private.coffee/api/interpreter",
+        "https://overpass-api.de/api/interpreter"
+    ]
 
-    # Try each mirror
+    data = None
     for url in OVERPASS_SERVERS:
         try:
-            print(f"Trying Overpass: {url}")
-            async with httpx.AsyncClient(timeout=45) as client:
+            async with httpx.AsyncClient(timeout=60) as client:
                 response = await client.post(
                     url,
                     data={"data": query},
-                    headers={
-                        "User-Agent": "FamilyReady/1.0 (emergency preparedness app)",
-                        "Accept": "application/json",
-                    },
+                    headers={"User-Agent": "FamilyReady/1.0"}
                 )
-
-            print(f"  → {url} returned {response.status_code}")
-
             if response.status_code == 200:
                 data = response.json()
                 break
             else:
-                errors.append(f"{url}: HTTP {response.status_code}")
-
-        except httpx.TimeoutException:
-            errors.append(f"{url}: timeout")
-            print(f"  → {url} timed out")
+                print(f"Overpass error at {url}: {response.status_code}")
         except Exception as e:
-            errors.append(f"{url}: {str(e)[:80]}")
-            print(f"  → {url} failed: {e}")
+            print(f"Overpass connection failed at {url}: {e}")
 
     if data is None:
         return {
             "success": False,
-            "message": "Could not connect to OpenStreetMap Overpass servers",
-            "errors": errors,
+            "message": "Could not connect to OpenStreetMap Overpass servers"
         }
 
-    # Parse results
     places = []
     for element in data.get("elements", []):
         tags = element.get("tags", {})
@@ -150,6 +141,7 @@ async def get_safe_places(
         ]:
             if tags.get(key):
                 address_parts.append(tags[key])
+
         address = ", ".join(address_parts) or "Address not available"
 
         distance = calculate_distance(lat, lng, place_lat, place_lng)
@@ -161,7 +153,7 @@ async def get_safe_places(
             "latitude": place_lat,
             "longitude": place_lng,
             "address": address,
-            "distance_km": round(distance, 2),
+            "distance_km": round(distance, 2)
         })
 
     places.sort(key=lambda x: x["distance_km"])
@@ -169,5 +161,131 @@ async def get_safe_places(
     return {
         "success": True,
         "count": len(places),
-        "places": places,
+        "places": places
+    }
+
+
+# =====================================================
+# FLOOD ZONES (NEW)
+# =====================================================
+@app.get("/api/flood-zones")
+async def get_flood_zones(
+    lat: float = Query(...),
+    lng: float = Query(...),
+    radius: int = Query(10000)
+):
+    """
+    Fetch water bodies and flood-prone features from OpenStreetMap.
+    Returns them with a computed risk level.
+    """
+
+    query = f"""
+    [out:json][timeout:30];
+
+    (
+        way["waterway"="river"](around:{radius},{lat},{lng});
+        way["waterway"="stream"](around:{radius},{lat},{lng});
+        way["waterway"="canal"](around:{radius},{lat},{lng});
+        way["waterway"="drain"](around:{radius},{lat},{lng});
+
+        way["natural"="water"](around:{radius},{lat},{lng});
+        relation["natural"="water"](around:{radius},{lat},{lng});
+        way["natural"="wetland"](around:{radius},{lat},{lng});
+
+        way["hazard"="flood"](around:{radius},{lat},{lng});
+        way["flood_prone"="yes"](around:{radius},{lat},{lng});
+        node["hazard"="flood"](around:{radius},{lat},{lng});
+    );
+
+    out center tags;
+    """
+
+    OVERPASS_SERVERS = [
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
+        "https://overpass.private.coffee/api/interpreter",
+    ]
+
+    data = None
+    for url in OVERPASS_SERVERS:
+        try:
+            async with httpx.AsyncClient(timeout=60) as client:
+                response = await client.post(
+                    url,
+                    data={"data": query},
+                    headers={"User-Agent": "FamilyReady/1.0"},
+                )
+            if response.status_code == 200:
+                data = response.json()
+                break
+            else:
+                print(f"Overpass error at {url}: {response.status_code}")
+        except Exception as e:
+            print(f"Overpass failed at {url}: {e}")
+
+    if data is None:
+        return {
+            "success": False,
+            "message": "Could not fetch flood zones from OpenStreetMap"
+        }
+
+    zones = []
+    for el in data.get("elements", []):
+        tags = el.get("tags", {})
+
+        if "lat" in el and "lon" in el:
+            z_lat, z_lng = el["lat"], el["lon"]
+        elif "center" in el:
+            z_lat, z_lng = el["center"]["lat"], el["center"]["lon"]
+        else:
+            continue
+
+        waterway = tags.get("waterway", "")
+        natural  = tags.get("natural", "")
+        hazard   = tags.get("hazard", "")
+
+        if waterway == "river":
+            icon, kind, base_risk = "🌊", "River", "High"
+        elif waterway == "stream":
+            icon, kind, base_risk = "💧", "Stream", "Medium"
+        elif waterway == "canal":
+            icon, kind, base_risk = "🚰", "Canal", "Medium"
+        elif waterway == "drain":
+            icon, kind, base_risk = "🕳️", "Drainage", "Medium"
+        elif natural == "water":
+            icon, kind, base_risk = "🌊", "Water Body", "High"
+        elif natural == "wetland":
+            icon, kind, base_risk = "🌾", "Wetland", "Medium"
+        elif hazard == "flood" or tags.get("flood_prone") == "yes":
+            icon, kind, base_risk = "⚠️", "Known Flood Zone", "High"
+        else:
+            continue
+
+        distance = calculate_distance(lat, lng, z_lat, z_lng)
+
+        if distance < 1:
+            risk = "High"
+        elif distance < 3:
+            risk = base_risk
+        else:
+            risk = "Low"
+
+        name = tags.get("name", kind)
+
+        zones.append({
+            "name": name,
+            "kind": kind,
+            "icon": icon,
+            "latitude": z_lat,
+            "longitude": z_lng,
+            "risk": risk,
+            "distance_km": round(distance, 2),
+        })
+
+    zones.sort(key=lambda x: x["distance_km"])
+
+    return {
+        "success": True,
+        "count": len(zones),
+        "zones": zones
     }
