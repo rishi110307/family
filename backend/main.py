@@ -54,7 +54,7 @@ def calculate_distance(lat1, lon1, lat2, lon2):
 
 
 # =====================================================
-# SAFE PLACES
+# SAFE PLACES (multi-mirror + retries)
 # =====================================================
 @app.get("/api/safe-places")
 async def get_safe_places(
@@ -62,7 +62,7 @@ async def get_safe_places(
     lng: float = Query(...)
 ):
     query = f"""
-    [out:json][timeout:30];
+    [out:json][timeout:40];
 
     (
         nwr["amenity"="hospital"](around:10000,{lat},{lng});
@@ -76,31 +76,62 @@ async def get_safe_places(
     """
 
     OVERPASS_SERVERS = [
+        "https://overpass.kumi.systems/api/interpreter",
         "https://overpass.private.coffee/api/interpreter",
-        "https://overpass-api.de/api/interpreter"
+        "https://overpass.osm.ch/api/interpreter",
+        "https://overpass-api.de/api/interpreter",
     ]
 
     data = None
+    errors = []
+
+    # ---------- POST attempts ----------
     for url in OVERPASS_SERVERS:
         try:
-            async with httpx.AsyncClient(timeout=60) as client:
+            print(f"[safe-places] POST → {url}")
+            async with httpx.AsyncClient(timeout=90) as client:
                 response = await client.post(
                     url,
                     data={"data": query},
-                    headers={"User-Agent": "FamilyReady/1.0"}
+                    headers={
+                        "User-Agent": "FamilyReady/1.0",
+                        "Accept": "application/json",
+                    },
                 )
+            print(f"[safe-places] {url} → {response.status_code}")
+
             if response.status_code == 200:
                 data = response.json()
                 break
             else:
-                print(f"Overpass error at {url}: {response.status_code}")
+                errors.append(f"{url}: HTTP {response.status_code}")
+        except httpx.TimeoutException:
+            errors.append(f"{url}: timeout")
         except Exception as e:
-            print(f"Overpass connection failed at {url}: {e}")
+            errors.append(f"{url}: {str(e)[:100]}")
+
+    # ---------- GET fallback ----------
+    if data is None:
+        for url in OVERPASS_SERVERS:
+            try:
+                print(f"[safe-places] GET → {url}")
+                async with httpx.AsyncClient(timeout=60) as client:
+                    r = await client.get(
+                        url,
+                        params={"data": query},
+                        headers={"User-Agent": "FamilyReady/1.0"},
+                    )
+                if r.status_code == 200:
+                    data = r.json()
+                    break
+            except Exception as e:
+                print(f"[safe-places] GET failed: {e}")
 
     if data is None:
         return {
             "success": False,
-            "message": "Could not connect to OpenStreetMap Overpass servers"
+            "message": "Could not connect to OpenStreetMap Overpass servers",
+            "errors": errors,
         }
 
     places = []
@@ -166,7 +197,7 @@ async def get_safe_places(
 
 
 # =====================================================
-# FLOOD ZONES (broadened query, bigger radius)
+# FLOOD ZONES (multi-mirror + fallback)
 # =====================================================
 @app.get("/api/flood-zones")
 async def get_flood_zones(
@@ -178,35 +209,27 @@ async def get_flood_zones(
     [out:json][timeout:60];
 
     (
-        // Waterways
         way["waterway"](around:{radius},{lat},{lng});
         relation["waterway"](around:{radius},{lat},{lng});
 
-        // Any water-related natural feature
         way["natural"="water"](around:{radius},{lat},{lng});
         relation["natural"="water"](around:{radius},{lat},{lng});
         way["natural"="wetland"](around:{radius},{lat},{lng});
         way["natural"="bay"](around:{radius},{lat},{lng});
-        way["natural"="strait"](around:{radius},{lat},{lng});
 
-        // Man-made water bodies (very common in India)
         way["landuse"="reservoir"](around:{radius},{lat},{lng});
         relation["landuse"="reservoir"](around:{radius},{lat},{lng});
         way["landuse"="basin"](around:{radius},{lat},{lng});
         way["landuse"="pond"](around:{radius},{lat},{lng});
 
-        // Tanks (very common in South India)
         node["man_made"="water_tank"](around:{radius},{lat},{lng});
         way["man_made"="water_tank"](around:{radius},{lat},{lng});
-        way["man_made"="reservoir_covered"](around:{radius},{lat},{lng});
 
-        // Flood-prone areas explicitly tagged
         way["hazard"="flood"](around:{radius},{lat},{lng});
         node["hazard"="flood"](around:{radius},{lat},{lng});
         way["flood_prone"="yes"](around:{radius},{lat},{lng});
         node["flood_prone"="yes"](around:{radius},{lat},{lng});
 
-        // Dams (relevant for Tirunelveli — e.g., Papanasam)
         way["waterway"="dam"](around:{radius},{lat},{lng});
         node["waterway"="dam"](around:{radius},{lat},{lng});
     );
@@ -248,13 +271,64 @@ async def get_flood_zones(
         except Exception as e:
             errors.append(f"{url}: {str(e)[:100]}")
 
+    # ---------- Curated fallback (Tirunelveli DDMP) ----------
+    KNOWN_FLOOD_ZONES = [
+        {"name": "Thamirabarani River", "kind": "River", "icon": "🌊",
+         "latitude": 8.7234, "longitude": 77.7123, "risk": "High",
+         "reason": "Major river — overflows during NE monsoon"},
+        {"name": "Sankanthiradu", "kind": "Flood Zone", "icon": "⚠️",
+         "latitude": 8.7139, "longitude": 77.7420, "risk": "High",
+         "reason": "Very high vulnerability area (DDMP)"},
+        {"name": "Melaveeraragavapuram", "kind": "Flood Zone", "icon": "⚠️",
+         "latitude": 8.7100, "longitude": 77.7350, "risk": "High",
+         "reason": "Very high vulnerability area (DDMP)"},
+        {"name": "Karupanthurai", "kind": "Flood Zone", "icon": "⚠️",
+         "latitude": 8.7180, "longitude": 77.7490, "risk": "High",
+         "reason": "Very high vulnerability area (DDMP)"},
+        {"name": "Kurunthudiyarpuram", "kind": "Flood Zone", "icon": "⚠️",
+         "latitude": 8.7250, "longitude": 77.7300, "risk": "High",
+         "reason": "Very high vulnerability area (DDMP)"},
+        {"name": "Vellakoli / Vannarpettai", "kind": "Flood Zone", "icon": "⚠️",
+         "latitude": 8.7060, "longitude": 77.7270, "risk": "High",
+         "reason": "Very high vulnerability area (DDMP)"},
+        {"name": "Kokkirakulam", "kind": "Flood Zone", "icon": "⚠️",
+         "latitude": 8.7160, "longitude": 77.7380, "risk": "High",
+         "reason": "Very high vulnerability area (DDMP)"},
+        {"name": "Puthugramam (Muneerpallam)", "kind": "Flood Zone", "icon": "⚠️",
+         "latitude": 8.6900, "longitude": 77.7400, "risk": "High",
+         "reason": "Very high vulnerability area (DDMP)"},
+        {"name": "Papanasam Dam", "kind": "Dam", "icon": "🚧",
+         "latitude": 8.8096, "longitude": 77.3953, "risk": "Medium",
+         "reason": "Upstream dam — controls Thamirabarani flow"},
+        {"name": "Manimuthar Dam", "kind": "Dam", "icon": "🚧",
+         "latitude": 8.6744, "longitude": 77.4019, "risk": "Medium",
+         "reason": "Upstream dam — controls Thamirabarani flow"},
+    ]
+
+    def apply_fallback():
+        # Only apply fallback if user is within 40 km of Tirunelveli
+        d = calculate_distance(lat, lng, 8.7139, 77.7567)
+        return KNOWN_FLOOD_ZONES if d < 40 else []
+
+    # If Overpass failed entirely → use fallback
     if data is None:
+        fallback = apply_fallback()
+        if fallback:
+            return {
+                "success": True,
+                "count": len(fallback),
+                "zones": fallback,
+                "search_radius_km": radius / 1000,
+                "source": "curated_ddmp_fallback",
+                "errors": errors,
+            }
         return {
             "success": False,
             "message": "Could not fetch flood zones from OpenStreetMap",
             "errors": errors,
         }
 
+    # ---------- Parse Overpass response ----------
     zones = []
     for el in data.get("elements", []):
         tags = el.get("tags", {})
@@ -266,12 +340,12 @@ async def get_flood_zones(
         else:
             continue
 
-        waterway  = tags.get("waterway", "")
-        natural   = tags.get("natural", "")
-        landuse   = tags.get("landuse", "")
-        man_made  = tags.get("man_made", "")
-        hazard    = tags.get("hazard", "")
-        flood     = tags.get("flood_prone", "")
+        waterway = tags.get("waterway", "")
+        natural  = tags.get("natural", "")
+        landuse  = tags.get("landuse", "")
+        man_made = tags.get("man_made", "")
+        hazard   = tags.get("hazard", "")
+        flood    = tags.get("flood_prone", "")
 
         if waterway == "river":
             icon, kind, base_risk = "🌊", "River", "High"
@@ -327,6 +401,18 @@ async def get_flood_zones(
 
     zones.sort(key=lambda x: x["distance_km"])
     zones = zones[:100]
+
+    # If Overpass returned 0 → apply fallback for Tirunelveli
+    if len(zones) == 0:
+        fallback = apply_fallback()
+        if fallback:
+            return {
+                "success": True,
+                "count": len(fallback),
+                "zones": fallback,
+                "search_radius_km": radius / 1000,
+                "source": "curated_ddmp_fallback",
+            }
 
     return {
         "success": True,
