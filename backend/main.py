@@ -54,7 +54,7 @@ def calculate_distance(lat1, lon1, lat2, lon2):
 
 
 # =====================================================
-# SAFE PLACES (existing)
+# SAFE PLACES
 # =====================================================
 @app.get("/api/safe-places")
 async def get_safe_places(
@@ -166,28 +166,49 @@ async def get_safe_places(
 
 
 # =====================================================
-# FLOOD ZONES (NEW — with retries & detailed errors)
+# FLOOD ZONES (broadened query, bigger radius)
 # =====================================================
 @app.get("/api/flood-zones")
 async def get_flood_zones(
     lat: float = Query(...),
     lng: float = Query(...),
-    radius: int = Query(10000)
+    radius: int = Query(25000)
 ):
     query = f"""
-    [out:json][timeout:40];
+    [out:json][timeout:60];
 
     (
-        way["waterway"="river"](around:{radius},{lat},{lng});
-        way["waterway"="stream"](around:{radius},{lat},{lng});
-        way["waterway"="canal"](around:{radius},{lat},{lng});
-        way["waterway"="drain"](around:{radius},{lat},{lng});
+        // Waterways
+        way["waterway"](around:{radius},{lat},{lng});
+        relation["waterway"](around:{radius},{lat},{lng});
+
+        // Any water-related natural feature
         way["natural"="water"](around:{radius},{lat},{lng});
         relation["natural"="water"](around:{radius},{lat},{lng});
         way["natural"="wetland"](around:{radius},{lat},{lng});
+        way["natural"="bay"](around:{radius},{lat},{lng});
+        way["natural"="strait"](around:{radius},{lat},{lng});
+
+        // Man-made water bodies (very common in India)
+        way["landuse"="reservoir"](around:{radius},{lat},{lng});
+        relation["landuse"="reservoir"](around:{radius},{lat},{lng});
+        way["landuse"="basin"](around:{radius},{lat},{lng});
+        way["landuse"="pond"](around:{radius},{lat},{lng});
+
+        // Tanks (very common in South India)
+        node["man_made"="water_tank"](around:{radius},{lat},{lng});
+        way["man_made"="water_tank"](around:{radius},{lat},{lng});
+        way["man_made"="reservoir_covered"](around:{radius},{lat},{lng});
+
+        // Flood-prone areas explicitly tagged
         way["hazard"="flood"](around:{radius},{lat},{lng});
-        way["flood_prone"="yes"](around:{radius},{lat},{lng});
         node["hazard"="flood"](around:{radius},{lat},{lng});
+        way["flood_prone"="yes"](around:{radius},{lat},{lng});
+        node["flood_prone"="yes"](around:{radius},{lat},{lng});
+
+        // Dams (relevant for Tirunelveli — e.g., Papanasam)
+        way["waterway"="dam"](around:{radius},{lat},{lng});
+        node["waterway"="dam"](around:{radius},{lat},{lng});
     );
 
     out center tags;
@@ -198,13 +219,11 @@ async def get_flood_zones(
         "https://overpass.private.coffee/api/interpreter",
         "https://overpass.osm.ch/api/interpreter",
         "https://overpass-api.de/api/interpreter",
-        "https://overpass.openstreetmap.ru/api/interpreter",
     ]
 
     data = None
     errors = []
 
-    # ---------- POST attempts ----------
     for url in OVERPASS_SERVERS:
         try:
             print(f"[flood-zones] POST → {url}")
@@ -229,23 +248,6 @@ async def get_flood_zones(
         except Exception as e:
             errors.append(f"{url}: {str(e)[:100]}")
 
-    # ---------- GET fallback ----------
-    if data is None:
-        for url in OVERPASS_SERVERS:
-            try:
-                print(f"[flood-zones] GET → {url}")
-                async with httpx.AsyncClient(timeout=60) as client:
-                    r = await client.get(
-                        url,
-                        params={"data": query},
-                        headers={"User-Agent": "FamilyReady/1.0"},
-                    )
-                if r.status_code == 200:
-                    data = r.json()
-                    break
-            except Exception as e:
-                print(f"[flood-zones] GET failed: {e}")
-
     if data is None:
         return {
             "success": False,
@@ -253,7 +255,6 @@ async def get_flood_zones(
             "errors": errors,
         }
 
-    # ---------- Parse ----------
     zones = []
     for el in data.get("elements", []):
         tags = el.get("tags", {})
@@ -265,9 +266,12 @@ async def get_flood_zones(
         else:
             continue
 
-        waterway = tags.get("waterway", "")
-        natural  = tags.get("natural", "")
-        hazard   = tags.get("hazard", "")
+        waterway  = tags.get("waterway", "")
+        natural   = tags.get("natural", "")
+        landuse   = tags.get("landuse", "")
+        man_made  = tags.get("man_made", "")
+        hazard    = tags.get("hazard", "")
+        flood     = tags.get("flood_prone", "")
 
         if waterway == "river":
             icon, kind, base_risk = "🌊", "River", "High"
@@ -277,11 +281,23 @@ async def get_flood_zones(
             icon, kind, base_risk = "🚰", "Canal", "Medium"
         elif waterway == "drain":
             icon, kind, base_risk = "🕳️", "Drainage", "Medium"
+        elif waterway == "dam":
+            icon, kind, base_risk = "🚧", "Dam", "High"
         elif natural == "water":
             icon, kind, base_risk = "🌊", "Water Body", "High"
         elif natural == "wetland":
             icon, kind, base_risk = "🌾", "Wetland", "Medium"
-        elif hazard == "flood" or tags.get("flood_prone") == "yes":
+        elif natural == "bay":
+            icon, kind, base_risk = "🌊", "Bay", "Medium"
+        elif landuse == "reservoir":
+            icon, kind, base_risk = "💦", "Reservoir", "High"
+        elif landuse == "basin":
+            icon, kind, base_risk = "🪣", "Basin", "High"
+        elif landuse == "pond":
+            icon, kind, base_risk = "💧", "Pond", "Medium"
+        elif man_made == "water_tank":
+            icon, kind, base_risk = "🛢️", "Water Tank", "Medium"
+        elif hazard == "flood" or flood == "yes":
             icon, kind, base_risk = "⚠️", "Known Flood Zone", "High"
         else:
             continue
@@ -292,6 +308,8 @@ async def get_flood_zones(
             risk = "High"
         elif distance < 3:
             risk = base_risk
+        elif distance < 10:
+            risk = "Medium" if base_risk == "High" else base_risk
         else:
             risk = "Low"
 
@@ -308,9 +326,11 @@ async def get_flood_zones(
         })
 
     zones.sort(key=lambda x: x["distance_km"])
+    zones = zones[:100]
 
     return {
         "success": True,
         "count": len(zones),
         "zones": zones,
+        "search_radius_km": radius / 1000,
     }
