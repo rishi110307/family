@@ -166,7 +166,7 @@ async def get_safe_places(
 
 
 # =====================================================
-# FLOOD ZONES (NEW)
+# FLOOD ZONES (NEW — with retries & detailed errors)
 # =====================================================
 @app.get("/api/flood-zones")
 async def get_flood_zones(
@@ -174,24 +174,17 @@ async def get_flood_zones(
     lng: float = Query(...),
     radius: int = Query(10000)
 ):
-    """
-    Fetch water bodies and flood-prone features from OpenStreetMap.
-    Returns them with a computed risk level.
-    """
-
     query = f"""
-    [out:json][timeout:30];
+    [out:json][timeout:40];
 
     (
         way["waterway"="river"](around:{radius},{lat},{lng});
         way["waterway"="stream"](around:{radius},{lat},{lng});
         way["waterway"="canal"](around:{radius},{lat},{lng});
         way["waterway"="drain"](around:{radius},{lat},{lng});
-
         way["natural"="water"](around:{radius},{lat},{lng});
         relation["natural"="water"](around:{radius},{lat},{lng});
         way["natural"="wetland"](around:{radius},{lat},{lng});
-
         way["hazard"="flood"](around:{radius},{lat},{lng});
         way["flood_prone"="yes"](around:{radius},{lat},{lng});
         node["hazard"="flood"](around:{radius},{lat},{lng});
@@ -201,34 +194,66 @@ async def get_flood_zones(
     """
 
     OVERPASS_SERVERS = [
-        "https://overpass-api.de/api/interpreter",
         "https://overpass.kumi.systems/api/interpreter",
         "https://overpass.private.coffee/api/interpreter",
+        "https://overpass.osm.ch/api/interpreter",
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.openstreetmap.ru/api/interpreter",
     ]
 
     data = None
+    errors = []
+
+    # ---------- POST attempts ----------
     for url in OVERPASS_SERVERS:
         try:
-            async with httpx.AsyncClient(timeout=60) as client:
+            print(f"[flood-zones] POST → {url}")
+            async with httpx.AsyncClient(timeout=90) as client:
                 response = await client.post(
                     url,
                     data={"data": query},
-                    headers={"User-Agent": "FamilyReady/1.0"},
+                    headers={
+                        "User-Agent": "FamilyReady/1.0",
+                        "Accept": "application/json",
+                    },
                 )
+            print(f"[flood-zones] {url} → {response.status_code}")
+
             if response.status_code == 200:
                 data = response.json()
                 break
             else:
-                print(f"Overpass error at {url}: {response.status_code}")
+                errors.append(f"{url}: HTTP {response.status_code}")
+        except httpx.TimeoutException:
+            errors.append(f"{url}: timeout")
         except Exception as e:
-            print(f"Overpass failed at {url}: {e}")
+            errors.append(f"{url}: {str(e)[:100]}")
+
+    # ---------- GET fallback ----------
+    if data is None:
+        for url in OVERPASS_SERVERS:
+            try:
+                print(f"[flood-zones] GET → {url}")
+                async with httpx.AsyncClient(timeout=60) as client:
+                    r = await client.get(
+                        url,
+                        params={"data": query},
+                        headers={"User-Agent": "FamilyReady/1.0"},
+                    )
+                if r.status_code == 200:
+                    data = r.json()
+                    break
+            except Exception as e:
+                print(f"[flood-zones] GET failed: {e}")
 
     if data is None:
         return {
             "success": False,
-            "message": "Could not fetch flood zones from OpenStreetMap"
+            "message": "Could not fetch flood zones from OpenStreetMap",
+            "errors": errors,
         }
 
+    # ---------- Parse ----------
     zones = []
     for el in data.get("elements", []):
         tags = el.get("tags", {})
@@ -287,5 +312,5 @@ async def get_flood_zones(
     return {
         "success": True,
         "count": len(zones),
-        "zones": zones
+        "zones": zones,
     }
