@@ -86,6 +86,136 @@
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
         }
 
+        /* ===== WEATHER CARD ===== */
+        .weather-card {
+            background: linear-gradient(135deg, #dbeafe 0%, #e0f2fe 100%);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+        }
+
+        .weather-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .weather-main {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .weather-icon {
+            font-size: 70px;
+            line-height: 1;
+        }
+
+        .weather-temp {
+            font-size: 48px;
+            font-weight: bold;
+            color: #123b5d;
+        }
+
+        .weather-desc {
+            color: #475569;
+            font-size: 16px;
+            margin-top: 6px;
+        }
+
+        .weather-details {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.6);
+        }
+
+        .weather-detail {
+            background: rgba(255,255,255,0.7);
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .detail-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+
+        .detail-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #123b5d;
+        }
+
+        .weather-forecast {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .forecast-day {
+            background: rgba(255,255,255,0.7);
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .forecast-day-name {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+
+        .forecast-day-icon {
+            font-size: 28px;
+            margin: 4px 0;
+        }
+
+        .forecast-day-temp {
+            font-size: 14px;
+            font-weight: bold;
+            color: #123b5d;
+        }
+
+        .weather-alert-live {
+            padding: 14px;
+            border-radius: 10px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .weather-alert-live.danger {
+            background: #fef2f2;
+            border-left: 5px solid #dc2626;
+            color: #7f1d1d;
+        }
+
+        .weather-alert-live.warning {
+            background: #fff7ed;
+            border-left: 5px solid #f97316;
+            color: #7c2d12;
+        }
+
+        .weather-alert-live.info {
+            background: #eff6ff;
+            border-left: 5px solid #2563eb;
+            color: #1e3a8a;
+        }
+
+        @media (max-width: 700px) {
+            .weather-details { grid-template-columns: repeat(2, 1fr); }
+            .weather-forecast { grid-template-columns: 1fr; }
+            .weather-temp { font-size: 38px; }
+            .weather-icon { font-size: 55px; }
+        }
+
         .pw-wrap {
             position: relative;
         }
@@ -160,6 +290,69 @@
                 font-size: 26px;
             }
         }
+
+        /* =====================================================
+           GLOBAL MODAL STYLES
+           (used by modals that live directly under <body>)
+        ===================================================== */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.75);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            width: 90%;
+            max-width: 650px;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 {
+            color: #dc2626;
+            margin-bottom: 20px;
+        }
+
+        .close-btn {
+            float: right;
+            font-size: 25px;
+            cursor: pointer;
+            color: #64748b;
+            line-height: 1;
+            background: none;
+            border: none;
+        }
+
+        .close-btn:hover {
+            color: #dc2626;
+        }
+
+        .emergency-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .emergency-card {
+            background: #fef2f2;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        @media (max-width: 700px) {
+            .emergency-info { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -200,12 +393,11 @@
             <div class="demo-box">
                 <div><strong>Demo Access</strong></div>
                 📧 <strong>Email:</strong> admin@guardianx.com<br>
-                🔑 <strong>Password:</strong> guardian123
             </div>
         </div>
     </div>
 
-    <!-- ===== DASHBOARD APP (your existing content) ===== -->
+    <!-- ===== DASHBOARD APP ===== -->
     <div id="dashboardApp">
 
         <!-- SIDEBAR -->
@@ -256,6 +448,49 @@
             <!-- DASHBOARD -->
             <section id="dashboard" class="section active">
                 <div class="cards">
+                    <!-- ===== LIVE WEATHER CARD ===== -->
+                    <div class="weather-card" id="weatherCard" style="display:none;">
+                        <div class="weather-header">
+                            <div>
+                                <h2 style="margin:0;">🌤️ Live Weather</h2>
+                                <p id="weatherLocation" style="color:#64748b; font-size:13px; margin-top:4px;">
+                                    Detecting location...
+                                </p>
+                            </div>
+                            <button class="btn" onclick="refreshWeather()" style="padding:8px 14px; font-size:13px;">
+                                🔄 Refresh
+                            </button>
+                        </div>
+
+                        <div class="weather-main">
+                            <div class="weather-icon" id="weatherIcon">☀️</div>
+                            <div class="weather-temp" id="weatherTemp">--°C</div>
+                            <div class="weather-desc" id="weatherDesc">Loading...</div>
+                        </div>
+
+                        <div class="weather-details">
+                            <div class="weather-detail">
+                                <div class="detail-label">💨 Wind</div>
+                                <div class="detail-value" id="weatherWind">-- km/h</div>
+                            </div>
+                            <div class="weather-detail">
+                                <div class="detail-label">💧 Humidity</div>
+                                <div class="detail-value" id="weatherHumidity">--%</div>
+                            </div>
+                            <div class="weather-detail">
+                                <div class="detail-label">🌧️ Rain</div>
+                                <div class="detail-value" id="weatherRain">-- mm</div>
+                            </div>
+                            <div class="weather-detail">
+                                <div class="detail-label">🌡️ Feels Like</div>
+                                <div class="detail-value" id="weatherFeels">--°C</div>
+                            </div>
+                        </div>
+
+                        <div class="weather-forecast" id="weatherForecast"></div>
+                        <div id="weatherAlerts" style="margin-top:15px;"></div>
+                    </div>
+
                     <div class="card">
                         <div class="card-icon">🛡️</div>
                         <div class="card-title">Preparedness Score</div>
@@ -264,17 +499,20 @@
                     <div class="card">
                         <div class="card-icon">👨‍👩‍👧</div>
                         <div class="card-title">Family Members</div>
-                        <div class="card-value">4</div>
+                        <div class="card-value" id="familyCount">2</div>
                     </div>
                     <div class="card">
                         <div class="card-icon">📞</div>
                         <div class="card-title">Emergency Contacts</div>
-                        <div class="card-value">6</div>
+                        <div class="card-value">8</div>
                     </div>
-                    <div class="card">
+                    <div class="card" onclick="showHazardDetails()" style="cursor:pointer;">
                         <div class="card-icon">⚠️</div>
-                        <div class="card-title">Nearby Hazards</div>
-                        <div class="card-value">3</div>
+                        <div class="card-title">Active Hazards</div>
+                        <div class="card-value" id="hazardCount">0</div>
+                        <div style="font-size:12px; color:#64748b; margin-top:6px;">
+                            Click to view details →
+                        </div>
                     </div>
                 </div>
 
@@ -366,11 +604,11 @@
                         <tbody>
                             <tr>
                                 <td>Arun Kumar</td><td>45</td><td>Father</td><td>9876543210</td><td>None</td>
-                                <td><button class="emergency-btn" onclick="this.parentElement.parentElement.remove()">🗑️ Delete</button></td>
+                                <td><button class="emergency-btn" onclick="this.parentElement.parentElement.remove(); updateFamilyCount();">🗑️ Delete</button></td>
                             </tr>
                             <tr>
                                 <td>Priya Kumar</td><td>40</td><td>Mother</td><td>9876543211</td><td>None</td>
-                                <td><button class="emergency-btn" onclick="this.parentElement.parentElement.remove()">🗑️ Delete</button></td>
+                                <td><button class="emergency-btn" onclick="this.parentElement.parentElement.remove(); updateFamilyCount();">🗑️ Delete</button></td>
                             </tr>
                         </tbody>
                     </table>
@@ -379,18 +617,76 @@
 
             <!-- CONTACTS -->
             <section id="contacts" class="section">
-                <h1>📞 Emergency Contacts</h1><br>
+                <h1>📞 Emergency Contacts</h1>
+                <p style="color:#64748b; margin-top:8px;">
+                    Tap <strong>Call</strong> to dial directly from your phone.
+                    On desktop, it will show you the number to dial manually.
+                </p>
+                <br>
+
                 <table>
-                    <tr><th>Service</th><th>Number</th><th>Action</th></tr>
-                    <tr><td>🚓 Police</td><td>112</td><td><button class="btn" onclick="alert('Calling Police...')">Call</button></td></tr>
-                    <tr><td>👧🏻 Child Helpline</td><td>1098</td><td><button class="btn" onclick="alert('Calling Child Helpline...')">Call</button></td></tr>
-                    <tr><td>👩🏻 Women Helpline</td><td>181</td><td><button class="btn" onclick="alert('Calling Women Helpline...')">Call</button></td></tr>
-                    <tr><td>💊 Emergency Medical</td><td>102</td><td><button class="btn" onclick="alert('Calling Emergency Medical...')">Call</button></td></tr>
-                    <tr><td>⚡ Electricity Emergency</td><td>1912</td><td><button class="btn" onclick="alert('Calling Electricity Emergency...')">Call</button></td></tr>
-                    <tr><td>🏮 LPG/Gas Leakage</td><td>1906</td><td><button class="btn" onclick="alert('Calling LPG Emergency...')">Call</button></td></tr>
-                    <tr><td>🚑 Ambulance</td><td>108</td><td><button class="btn" onclick="alert('Calling Ambulance...')">Call</button></td></tr>
-                    <tr><td>🔥 Fire & Rescue</td><td>101</td><td><button class="btn" onclick="alert('Calling Fire & Rescue...')">Call</button></td></tr>
+                    <thead>
+                        <tr>
+                            <th>Service</th>
+                            <th>Number</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>🚓 Police</td>
+                            <td>112</td>
+                            <td><button class="btn" onclick="makeCall('112', 'Police')">📞 Call</button></td>
+                        </tr>
+                        <tr>
+                            <td>👧🏻 Child Helpline</td>
+                            <td>1098</td>
+                            <td><button class="btn" onclick="makeCall('1098', 'Child Helpline')">📞 Call</button></td>
+                        </tr>
+                        <tr>
+                            <td>👩🏻 Women Helpline</td>
+                            <td>181</td>
+                            <td><button class="btn" onclick="makeCall('181', 'Women Helpline')">📞 Call</button></td>
+                        </tr>
+                        <tr>
+                            <td>💊 Emergency Medical</td>
+                            <td>102</td>
+                            <td><button class="btn" onclick="makeCall('102', 'Emergency Medical')">📞 Call</button></td>
+                        </tr>
+                        <tr>
+                            <td>⚡ Electricity Emergency</td>
+                            <td>1912</td>
+                            <td><button class="btn" onclick="makeCall('1912', 'Electricity Emergency')">📞 Call</button></td>
+                        </tr>
+                        <tr>
+                            <td>🏮 LPG / Gas Leakage</td>
+                            <td>1906</td>
+                            <td><button class="btn" onclick="makeCall('1906', 'LPG Emergency')">📞 Call</button></td>
+                        </tr>
+                        <tr>
+                            <td>🚑 Ambulance</td>
+                            <td>108</td>
+                            <td><button class="btn" onclick="makeCall('108', 'Ambulance')">📞 Call</button></td>
+                        </tr>
+                        <tr>
+                            <td>🔥 Fire & Rescue</td>
+                            <td>101</td>
+                            <td><button class="btn" onclick="makeCall('101', 'Fire & Rescue')">📞 Call</button></td>
+                        </tr>
+                    </tbody>
                 </table>
+
+                <div id="callFallback"
+                     style="display:none; margin-top:20px; padding:16px;
+                            background:#eff6ff; border-left:5px solid #2563eb;
+                            border-radius:10px;">
+                    <strong>📱 Number ready to dial:</strong>
+                    <div id="callFallbackText"
+                         style="font-size:20px; font-weight:bold; color:#123b5d; margin-top:8px;"></div>
+                    <p style="color:#64748b; margin-top:8px; font-size:13px;">
+                        Dial this number from your phone.
+                    </p>
+                </div>
             </section>
 
             <!-- HAZARDS -->
@@ -402,6 +698,7 @@
                     <button class="btn" onclick="getCurrentLocation()">📍 Find My Location</button>
                     <button class="btn" onclick="locateHome()" style="margin-left:10px;">🏠 My Home</button>
                     <button class="btn" onclick="showSafePlaces()" style="margin-left:10px;">🏥 Safe Places</button>
+                    <button class="btn" onclick="showFloodZones()" style="margin-left:10px; background:#dc2626;">🌊 Flood Zones</button>
                 </div>
                 <br>
                 <div id="map" style="width:100%; height:650px; border-radius:12px; overflow:hidden; box-shadow:0 3px 12px rgba(0,0,0,0.1);"></div>
@@ -511,41 +808,60 @@
                 </div>
             </section>
         </main>
+    </div>
 
-        <!-- EMERGENCY MODAL -->
-        <div class="modal" id="emergencyModal">
-            <div class="modal-content">
-                <span class="close-btn" onclick="closeEmergencyMode()">×</span>
-                <h2>🚨 EMERGENCY MODE</h2>
-                <p>Quickly access important emergency information.</p><br>
-                <div class="emergency-info">
-                    <div class="emergency-card">
-                        <h3>📞 Emergency</h3><br>
-                        <p>Police: <strong>112</strong></p>
-                        <p>Ambulance: <strong>108</strong></p>
-                        <p>Fire: <strong>101</strong></p>
-                    </div>
-                    <div class="emergency-card">
-                        <h3>📍 Meeting Point</h3><br>
-                        <p>Community Hall</p>
-                    </div>
-                    <div class="emergency-card">
-                        <h3>🗺️ Evacuation</h3><br>
-                        <p>Main Road → School → Safe Zone</p>
-                    </div>
-                    <div class="emergency-card">
-                        <h3>👨‍👩‍👧 Family</h3><br>
-                        <p>4 Family Members</p>
-                        <p>Status: Safe</p>
-                    </div>
+    <!-- =====================================================
+         MODALS — now directly under <body>
+    ===================================================== -->
+
+    <!-- EMERGENCY MODAL -->
+    <div class="modal" id="emergencyModal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeEmergencyMode()">×</button>
+            <h2>🚨 EMERGENCY MODE</h2>
+            <p>Quickly access important emergency information.</p><br>
+            <div class="emergency-info">
+                <div class="emergency-card">
+                    <h3>📞 Emergency</h3><br>
+                    <p>Police: <strong>112</strong></p>
+                    <p>Ambulance: <strong>108</strong></p>
+                    <p>Fire: <strong>101</strong></p>
                 </div>
-                <br>
-                <button class="emergency-btn" onclick="closeEmergencyMode()">Close Emergency Mode</button>
+                <div class="emergency-card">
+                    <h3>📍 Meeting Point</h3><br>
+                    <p>Community Hall</p>
+                </div>
+                <div class="emergency-card">
+                    <h3>🗺️ Evacuation</h3><br>
+                    <p>Main Road → School → Safe Zone</p>
+                </div>
+                <div class="emergency-card">
+                    <h3>👨‍👩‍👧 Family</h3><br>
+                    <p>4 Family Members</p>
+                    <p>Status: Safe</p>
+                </div>
             </div>
+            <br>
+            <button class="emergency-btn" onclick="closeEmergencyMode()">Close Emergency Mode</button>
         </div>
     </div>
 
-    <!-- ===== LEAFLET (loaded after dashboard) ===== -->
+    <!-- HAZARD DETAILS MODAL -->
+    <div class="modal" id="hazardModal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeHazardModal()">×</button>
+            <h2 style="color:#dc2626;">⚠️ Active Hazards</h2>
+            <p style="color:#64748b; margin-top:6px;">
+                Based on live weather conditions at your location.
+            </p>
+            <br>
+            <div id="hazardModalList"></div>
+            <br>
+            <button class="btn" onclick="closeHazardModal()">Close</button>
+        </div>
+    </div>
+
+    <!-- ===== LEAFLET ===== -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -619,15 +935,6 @@
             background: white; padding: 18px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             display: flex; justify-content: space-between;
         }
-        #dashboardApp .modal {
-            display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.75); align-items: center; justify-content: center;
-        }
-        #dashboardApp .modal-content { background: white; width: 90%; max-width: 650px; padding: 30px; border-radius: 15px; }
-        #dashboardApp .modal-content h2 { color: #dc2626; margin-bottom: 20px; }
-        #dashboardApp .emergency-info { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
-        #dashboardApp .emergency-card { background: #fef2f2; padding: 20px; border-radius: 10px; }
-        #dashboardApp .close-btn { float: right; font-size: 25px; cursor: pointer; }
 
         @media (max-width: 1000px) {
             #dashboardApp .cards { grid-template-columns: repeat(2, 1fr); }
@@ -639,7 +946,6 @@
             #dashboardApp .cards { grid-template-columns: 1fr; }
             #dashboardApp .topbar { flex-direction: column; gap: 15px; align-items: flex-start; }
             #dashboardApp .kit-grid { grid-template-columns: 1fr; }
-            #dashboardApp .emergency-info { grid-template-columns: 1fr; }
         }
     </style>
 
@@ -655,7 +961,7 @@
             const error = document.getElementById('loginError');
 
             const CORRECT_EMAIL = 'admin@guardianx.com';
-            const CORRECT_PASSWORD = 'guardian123';
+            const CORRECT_PASSWORD = 'guardianfamilyx0234';
 
             if (email === CORRECT_EMAIL && password === CORRECT_PASSWORD) {
                 localStorage.setItem('guardianXLoggedIn', 'true');
@@ -682,8 +988,26 @@
             document.getElementById('dashboardApp').style.display = 'block';
             document.getElementById('loginError').style.display = 'none';
 
-            // Initialize map after dashboard is visible
             setTimeout(initMap, 200);
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function (pos) {
+                        const lat = pos.coords.latitude;
+                        const lng = pos.coords.longitude;
+                        window.lastKnownLat = lat;
+                        window.lastKnownLng = lng;
+                        window.lastKnownLabel = 'Current Location';
+                        updateWeatherCard(lat, lng, 'Current Location');
+                    },
+                    function () {
+                        updateWeatherCard(28.6139, 77.2090, 'New Delhi (default)');
+                    },
+                    { enableHighAccuracy: true, timeout: 8000 }
+                );
+            } else {
+                updateWeatherCard(28.6139, 77.2090, 'New Delhi (default)');
+            }
         }
 
         function logoutUser() {
@@ -695,7 +1019,6 @@
             document.getElementById('loginError').style.display = 'none';
         }
 
-        /* Check login state on page load */
         window.addEventListener('load', function () {
             if (localStorage.getItem('guardianXLoggedIn') === 'true') {
                 showDashboard();
@@ -706,7 +1029,7 @@
         });
 
         /* =====================================================
-           DASHBOARD FUNCTIONS (same as original)
+           DASHBOARD FUNCTIONS
         ===================================================== */
         function showSection(sectionId, button) {
             const sections = document.querySelectorAll('#dashboardApp .section');
@@ -731,9 +1054,14 @@
         }
 
         window.addEventListener('click', function (event) {
-            const modal = document.getElementById('emergencyModal');
-            if (event.target === modal) {
-                modal.style.display = 'none';
+            const emergencyModal = document.getElementById('emergencyModal');
+            if (event.target === emergencyModal) {
+                emergencyModal.style.display = 'none';
+            }
+
+            const hazardModal = document.getElementById('hazardModal');
+            if (event.target === hazardModal) {
+                hazardModal.style.display = 'none';
             }
         });
 
@@ -760,7 +1088,7 @@
             row.insertCell(2).innerHTML = relation;
             row.insertCell(3).innerHTML = phone;
             row.insertCell(4).innerHTML = needs;
-            row.insertCell(5).innerHTML = `<button class="emergency-btn" onclick="this.parentElement.parentElement.remove()">🗑️ Delete</button>`;
+            row.insertCell(5).innerHTML = `<button class="emergency-btn" onclick="this.parentElement.parentElement.remove(); updateFamilyCount();">🗑️ Delete</button>`;
 
             document.getElementById('memberName').value = '';
             document.getElementById('memberAge').value = '';
@@ -768,8 +1096,16 @@
             document.getElementById('memberPhone').value = '';
             document.getElementById('memberNeeds').value = 'None';
             document.getElementById('familyForm').style.display = 'none';
+            updateFamilyCount();
             alert('✅ Family member added successfully!');
         }
+
+        function updateFamilyCount() {
+            const rows = document.querySelectorAll('#familyTable tbody tr');
+            document.getElementById('familyCount').textContent = rows.length;
+        }
+
+        window.addEventListener('load', updateFamilyCount);
 
         /* =====================================================
            EVACUATION PLANS
@@ -866,7 +1202,10 @@
                     userMarker = L.marker([lat, lng]).addTo(map);
                     userMarker.bindPopup(`<b>📍 You are here</b><br>Latitude: ${lat.toFixed(6)}<br>Longitude: ${lng.toFixed(6)}`).openPopup();
 
-                    addHazards(lat, lng);
+                    window.lastKnownLat = lat;
+                    window.lastKnownLng = lng;
+                    window.lastKnownLabel = 'Current Location';
+                    updateWeatherCard(lat, lng, 'Current Location');
                 },
                 function (error) {
                     document.getElementById('locationStatus').innerHTML = '❌ Unable to detect your location.';
@@ -874,15 +1213,6 @@
                 },
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
-        }
-
-        function addHazards(userLat, userLng) {
-            L.marker([userLat + 0.008, userLng + 0.006], { icon: window.hazardIcon })
-                .addTo(map).bindPopup('<h3>🌊 Flood Risk</h3><p>Potential flood-prone area.</p><strong>Risk:</strong> High');
-            L.marker([userLat - 0.006, userLng + 0.009], { icon: window.hazardIcon })
-                .addTo(map).bindPopup('<h3>🔥 Fire Risk</h3><p>Emergency monitoring area.</p><strong>Risk:</strong> Medium');
-            L.marker([userLat + 0.004, userLng - 0.010], { icon: window.hazardIcon })
-                .addTo(map).bindPopup('<h3>🌪️ Severe Weather</h3><p>Monitor weather conditions.</p><strong>Risk:</strong> Medium');
         }
 
         function locateHome() {
@@ -895,53 +1225,631 @@
             userMarker.bindPopup('<b>🏠 Your Home / Current Location</b>').openPopup();
         }
 
-        async function showSafePlaces() {
-            if (!userMarker) {
-                alert("First click 'Find My Location'.");
+        /* =====================================================
+           OPEN-METEO LIVE WEATHER
+        ===================================================== */
+        const WMO_CODES = {
+            0:  { icon: '☀️',  desc: 'Clear sky' },
+            1:  { icon: '🌤️', desc: 'Mainly clear' },
+            2:  { icon: '⛅',  desc: 'Partly cloudy' },
+            3:  { icon: '☁️',  desc: 'Overcast' },
+            45: { icon: '🌫️', desc: 'Foggy' },
+            48: { icon: '🌫️', desc: 'Depositing rime fog' },
+            51: { icon: '🌦️', desc: 'Light drizzle' },
+            53: { icon: '🌦️', desc: 'Moderate drizzle' },
+            55: { icon: '🌧️', desc: 'Dense drizzle' },
+            61: { icon: '🌧️', desc: 'Slight rain' },
+            63: { icon: '🌧️', desc: 'Moderate rain' },
+            65: { icon: '🌧️', desc: 'Heavy rain' },
+            71: { icon: '🌨️', desc: 'Slight snow' },
+            73: { icon: '🌨️', desc: 'Moderate snow' },
+            75: { icon: '❄️',  desc: 'Heavy snow' },
+            77: { icon: '🌨️', desc: 'Snow grains' },
+            80: { icon: '🌦️', desc: 'Slight rain showers' },
+            81: { icon: '🌧️', desc: 'Moderate rain showers' },
+            82: { icon: '⛈️', desc: 'Violent rain showers' },
+            85: { icon: '🌨️', desc: 'Slight snow showers' },
+            86: { icon: '❄️',  desc: 'Heavy snow showers' },
+            95: { icon: '⛈️', desc: 'Thunderstorm' },
+            96: { icon: '⛈️', desc: 'Thunderstorm with hail' },
+            99: { icon: '⛈️', desc: 'Thunderstorm with heavy hail' }
+        };
+
+        function weatherCodeInfo(code) {
+            return WMO_CODES[code] || { icon: '🌡️', desc: 'Unknown' };
+        }
+
+        function dayName(dateStr) {
+            const d = new Date(dateStr);
+            const today = new Date();
+            const tomorrow = new Date();
+            tomorrow.setDate(today.getDate() + 1);
+
+            if (d.toDateString() === today.toDateString()) return 'Today';
+            if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+            return d.toLocaleDateString('en', { weekday: 'short' });
+        }
+
+        async function fetchWeather(lat, lng) {
+            const url =
+                `https://api.open-meteo.com/v1/forecast?` +
+                `latitude=${lat}&longitude=${lng}` +
+                `&current=temperature_2m,relative_humidity_2m,apparent_temperature,` +
+                `precipitation,weather_code,wind_speed_10m` +
+                `&daily=weather_code,temperature_2m_max,temperature_2m_min,` +
+                `precipitation_sum,wind_speed_10m_max` +
+                `&timezone=auto` +
+                `&forecast_days=4`;
+
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('Open-Meteo request failed');
+            return await res.json();
+        }
+
+        async function updateWeatherCard(lat, lng, locationLabel) {
+            const card = document.getElementById('weatherCard');
+            card.style.display = 'block';
+
+            try {
+                const data = await fetchWeather(lat, lng);
+
+                const cur = data.current;
+                const info = weatherCodeInfo(cur.weather_code);
+
+                document.getElementById('weatherIcon').textContent = info.icon;
+                document.getElementById('weatherTemp').textContent = `${Math.round(cur.temperature_2m)}°C`;
+                document.getElementById('weatherDesc').textContent = info.desc;
+                document.getElementById('weatherWind').textContent = `${Math.round(cur.wind_speed_10m)} km/h`;
+                document.getElementById('weatherHumidity').textContent = `${cur.relative_humidity_2m}%`;
+                document.getElementById('weatherRain').textContent = `${cur.precipitation} mm`;
+                document.getElementById('weatherFeels').textContent = `${Math.round(cur.apparent_temperature)}°C`;
+
+                document.getElementById('weatherLocation').textContent =
+                    `📍 ${locationLabel} • Updated ${new Date().toLocaleTimeString()}`;
+
+                const forecastEl = document.getElementById('weatherForecast');
+                forecastEl.innerHTML = '';
+
+                for (let i = 1; i <= 3; i++) {
+                    const dayInfo = weatherCodeInfo(data.daily.weather_code[i]);
+                    forecastEl.innerHTML += `
+                        <div class="forecast-day">
+                            <div class="forecast-day-name">${dayName(data.daily.time[i])}</div>
+                            <div class="forecast-day-icon">${dayInfo.icon}</div>
+                            <div class="forecast-day-temp">
+                                ${Math.round(data.daily.temperature_2m_max[i])}° /
+                                ${Math.round(data.daily.temperature_2m_min[i])}°
+                            </div>
+                        </div>
+                    `;
+                }
+
+                generateWeatherAlerts(cur, data.daily);
+
+                const hazards = detectHazards(cur, data.daily);
+                updateHazardCard(hazards);
+
+            } catch (err) {
+                console.error('Weather error:', err);
+                document.getElementById('weatherDesc').textContent = '⚠️ Could not load weather';
+            }
+        }
+
+        function generateWeatherAlerts(cur, daily) {
+            const alertsEl = document.getElementById('weatherAlerts');
+            alertsEl.innerHTML = '';
+
+            const alerts = [];
+
+            if (cur.precipitation >= 10) {
+                alerts.push({
+                    level: 'danger',
+                    title: '🌧️ Heavy Rain Warning',
+                    msg: `Currently ${cur.precipitation} mm precipitation. Avoid low-lying areas.`
+                });
+            } else if (cur.precipitation >= 2) {
+                alerts.push({
+                    level: 'warning',
+                    title: '🌦️ Moderate Rain',
+                    msg: `Currently ${cur.precipitation} mm precipitation. Carry an umbrella.`
+                });
+            }
+
+            for (let i = 1; i <= 3; i++) {
+                if (daily.precipitation_sum[i] >= 30) {
+                    alerts.push({
+                        level: 'danger',
+                        title: `🌊 Flood Risk on ${dayName(daily.time[i])}`,
+                        msg: `${Math.round(daily.precipitation_sum[i])} mm rain expected. Check your evacuation plan.`
+                    });
+                    break;
+                }
+            }
+
+            if (cur.wind_speed_10m >= 60) {
+                alerts.push({
+                    level: 'danger',
+                    title: '🌪️ Strong Wind Warning',
+                    msg: `Wind at ${Math.round(cur.wind_speed_10m)} km/h. Stay indoors.`
+                });
+            } else if (cur.wind_speed_10m >= 35) {
+                alerts.push({
+                    level: 'warning',
+                    title: '💨 Gusty Winds',
+                    msg: `Wind at ${Math.round(cur.wind_speed_10m)} km/h. Secure loose objects.`
+                });
+            }
+
+            if ([95, 96, 99].includes(cur.weather_code)) {
+                alerts.push({
+                    level: 'danger',
+                    title: '⛈️ Thunderstorm Active',
+                    msg: 'Thunderstorm detected. Avoid open areas and tall trees.'
+                });
+            }
+
+            if (cur.temperature_2m >= 40) {
+                alerts.push({
+                    level: 'danger',
+                    title: '🔥 Extreme Heat',
+                    msg: `${Math.round(cur.temperature_2m)}°C — Stay hydrated, avoid sun.`
+                });
+            } else if (cur.temperature_2m >= 35) {
+                alerts.push({
+                    level: 'warning',
+                    title: '🌡️ Hot Weather',
+                    msg: `${Math.round(cur.temperature_2m)}°C — Drink plenty of water.`
+                });
+            }
+
+            if (cur.temperature_2m <= 5) {
+                alerts.push({
+                    level: 'warning',
+                    title: '🥶 Cold Weather',
+                    msg: `${Math.round(cur.temperature_2m)}°C — Dress warmly.`
+                });
+            }
+
+            if (alerts.length === 0) {
+                alertsEl.innerHTML = `
+                    <div class="weather-alert-live info">
+                        ✅ <strong>No weather alerts</strong> — Conditions are normal.
+                    </div>
+                `;
                 return;
             }
 
-            const position = userMarker.getLatLng();
-            const lat = position.lat;
-            const lng = position.lng;
+            alerts.forEach(a => {
+                alertsEl.innerHTML += `
+                    <div class="weather-alert-live ${a.level}">
+                        <strong>${a.title}</strong><br>
+                        ${a.msg}
+                    </div>
+                `;
+            });
+        }
+
+        function refreshWeather() {
+            if (!window.lastKnownLat || !window.lastKnownLng) {
+                alert('Please click "📍 Find My Location" on the Hazard Map first.');
+                showSection('hazards',
+                    document.querySelector('#dashboardApp .menu button[onclick*="hazards"]'));
+                return;
+            }
+            updateWeatherCard(window.lastKnownLat, window.lastKnownLng, window.lastKnownLabel || 'Your location');
+        }
+
+        /* =====================================================
+           MAKE A PHONE CALL
+        ===================================================== */
+        function makeCall(number, serviceName) {
+            const isMobile =
+                /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop|Mobile/i
+                .test(navigator.userAgent);
+
+            if (isMobile) {
+                window.location.href = `tel:${number}`;
+            } else {
+                const box = document.getElementById('callFallback');
+                const txt = document.getElementById('callFallbackText');
+
+                txt.textContent = `${serviceName}: ${number}`;
+                box.style.display = 'block';
+                box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        /* =====================================================
+           SHOW SAFE PLACES
+        ===================================================== */
+       async function showSafePlaces() {
+    if (!userMarker) {
+        alert("First click '📍 Find My Location'.");
+        return;
+    }
+
+    const position = userMarker.getLatLng();
+    const lat = position.lat;
+    const lng = position.lng;
+
+    safePlaceMarkers.forEach(m => map.removeLayer(m));
+    safePlaceMarkers = [];
+    const oldPanel = document.getElementById('safePlacesPanel');
+    if (oldPanel) oldPanel.remove();
+
+    const statusEl = document.getElementById('locationStatus');
+    statusEl.innerHTML = '🔍 Searching for nearby safe places...';
+
+    let places = [];
+    let source = '';
+
+    // ---------- 1. Try backend ----------
+    try {
+        const url = `https://family-8cy0.onrender.com/api/safe-places?lat=${lat}&lng=${lng}`;
+        console.log('Fetching from backend:', url);
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.success && data.places && data.places.length > 0) {
+            places = data.places;
+            source = 'backend';
+        } else {
+            console.warn('Backend returned no places:', data.message);
+        }
+    } catch (err) {
+        console.warn('Backend unreachable, trying Overpass directly:', err.message);
+    }
+
+    // ---------- 2. Fallback: direct Overpass ----------
+    if (places.length === 0) {
+        statusEl.innerHTML = '🌐 Backend unavailable, trying OpenStreetMap directly...';
+        places = await fetchSafePlacesDirect(lat, lng);
+        source = 'overpass-direct';
+    }
+
+    // ---------- 3. Handle result ----------
+    if (places.length === 0) {
+        statusEl.innerHTML = '❌ No safe places found.';
+        alert('❌ Could not find hospitals, police, or fire stations nearby.\n\n' +
+              'This is normal in rural areas, or if OpenStreetMap is slow. Try again in a moment.');
+        return;
+    }
+
+    // ---------- 4. Add markers ----------
+    places.forEach((place) => {
+        const marker = L.marker([place.latitude, place.longitude]).addTo(map);
+
+        marker.bindPopup(`
+            <div style="min-width:230px">
+                <h3 style="margin-bottom:6px;">${place.icon} ${escapeHTML(place.name)}</h3>
+                <p style="margin:4px 0;"><strong>Type:</strong> ${place.type}</p>
+                <p style="margin:4px 0;"><strong>Address:</strong> ${escapeHTML(place.address)}</p>
+                <p style="margin:4px 0;"><strong>Distance:</strong> ${place.distance_km} km</p>
+                <a href="https://www.openstreetmap.org/directions?from=${lat},${lng}&to=${place.latitude},${place.longitude}"
+                   target="_blank"
+                   style="display:inline-block;background:#2563eb;color:white;
+                          padding:8px 12px;border-radius:6px;text-decoration:none;
+                          margin-top:8px;font-size:13px;">
+                    🧭 Get Directions
+                </a>
+            </div>
+        `);
+
+        safePlaceMarkers.push(marker);
+    });
+
+    // ---------- 5. Fit map ----------
+    const group = L.featureGroup([userMarker].concat(safePlaceMarkers));
+    map.fitBounds(group.getBounds(), { padding: [60, 60] });
+
+    // ---------- 6. Build panel ----------
+    const panel = document.createElement('div');
+    panel.id = 'safePlacesPanel';
+    panel.className = 'card';
+    panel.style.marginTop = '20px';
+
+    let listHTML = `
+        <h2>🏥 Nearby Safe Places (${places.length})</h2>
+        <p style="color:#64748b; font-size:13px; margin-top:6px;">
+            Source: ${source === 'backend' ? 'GuardianX Backend' : 'OpenStreetMap (direct)'}
+        </p>
+        <br>
+    `;
+
+    places.forEach((p, i) => {
+        listHTML += `
+            <div style="display:flex; justify-content:space-between; align-items:center;
+                        padding:12px; border-bottom:1px solid #e5e7eb;">
+                <div>
+                    <div style="font-weight:bold;">${p.icon} ${escapeHTML(p.name)}</div>
+                    <div style="font-size:13px; color:#64748b; margin-top:4px;">
+                        ${p.type} • ${escapeHTML(p.address)}
+                    </div>
+                </div>
+                <div style="text-align:right; min-width:90px;">
+                    <div style="color:#2563eb; font-weight:bold;">${p.distance_km} km</div>
+                    <button class="btn"
+                            style="padding:6px 10px; font-size:12px; margin-top:6px;"
+                            onclick="focusSafePlace(${i})">
+                        📍 Show
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    panel.innerHTML = listHTML;
+
+    const mapDiv = document.getElementById('map');
+    mapDiv.parentNode.insertBefore(panel, mapDiv.nextSibling);
+
+    window.currentSafePlaces = places;
+
+    statusEl.innerHTML = `✅ Found ${places.length} safe places nearby.`;
+    alert(`✅ Found ${places.length} safe place${places.length > 1 ? 's' : ''} nearby.`);
+}
+
+        /* =====================================================
+   SAFE PLACES — Frontend fallback (browser → Overpass)
+   Used when backend is unreachable
+===================================================== */
+async function fetchSafePlacesDirect(lat, lng) {
+    const query = `
+        [out:json][timeout:30];
+        (
+            nwr["amenity"="hospital"](around:10000,${lat},${lng});
+            nwr["amenity"="police"](around:10000,${lat},${lng});
+            nwr["amenity"="fire_station"](around:10000,${lat},${lng});
+            nwr["amenity"="shelter"](around:10000,${lat},${lng});
+            nwr["emergency"="assembly_point"](around:10000,${lat},${lng});
+        );
+        out center tags;
+    `;
+
+    const servers = [
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
+        "https://overpass.private.coffee/api/interpreter",
+    ];
+
+    for (const url of servers) {
+        try {
+            console.log('Trying Overpass direct:', url);
+
+            const res = await fetch(url, {
+                method: "POST",
+                body: "data=" + encodeURIComponent(query),
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            });
+
+            if (!res.ok) {
+                console.warn("HTTP error:", res.status, url);
+                continue;
+            }
+
+            const data = await res.json();
+            const places = parseOverpassPlaces(data, lat, lng);
+
+            if (places.length > 0) return places;
+        } catch (e) {
+            console.warn("Overpass failed:", url, e.message);
+        }
+    }
+
+    return [];
+}
+
+function parseOverpassPlaces(data, userLat, userLng) {
+    const out = [];
+
+    for (const el of data.elements || []) {
+        const tags = el.tags || {};
+
+        let pLat, pLng;
+        if (el.lat && el.lon) { pLat = el.lat; pLng = el.lon; }
+        else if (el.center) { pLat = el.center.lat; pLng = el.center.lon; }
+        else continue;
+
+        let type, icon;
+        if (tags.amenity === "hospital") { type = "Hospital"; icon = "🏥"; }
+        else if (tags.amenity === "police") { type = "Police Station"; icon = "👮"; }
+        else if (tags.amenity === "fire_station") { type = "Fire Station"; icon = "🚒"; }
+        else if (tags.amenity === "shelter") { type = "Emergency Shelter"; icon = "🏠"; }
+        else if (tags.emergency === "assembly_point") { type = "Assembly Point"; icon = "📍"; }
+        else continue;
+
+        const name = tags.name || type;
+
+        const addrParts = [];
+        for (const k of ["addr:housenumber","addr:street","addr:suburb","addr:city","addr:postcode"]) {
+            if (tags[k]) addrParts.push(tags[k]);
+        }
+        const address = addrParts.join(", ") || "Address not available";
+
+        const dLat = (pLat - userLat) * Math.PI / 180;
+        const dLon = (pLng - userLng) * Math.PI / 180;
+        const a = Math.sin(dLat/2)**2 +
+                  Math.cos(userLat*Math.PI/180) *
+                  Math.cos(pLat*Math.PI/180) *
+                  Math.sin(dLon/2)**2;
+        const distance = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        out.push({
+            name, type, icon,
+            latitude: pLat,
+            longitude: pLng,
+            address,
+            distance_km: Math.round(distance * 100) / 100,
+        });
+    }
+
+    out.sort((a, b) => a.distance_km - b.distance_km);
+    return out.slice(0, 50);
+}
+
+        /* =====================================================
+           FLOOD ZONES
+        ===================================================== */
+        let floodZoneLayers = [];
+        let floodCircles = [];
+
+        async function showFloodZones() {
+            if (!userMarker) {
+                alert("First click '📍 Find My Location'.");
+                return;
+            }
+
+            const pos = userMarker.getLatLng();
+            const lat = pos.lat;
+            const lng = pos.lng;
+
+            floodZoneLayers.forEach(l => map.removeLayer(l));
+            floodCircles.forEach(c => map.removeLayer(c));
+            floodZoneLayers = [];
+            floodCircles = [];
+
+            const oldPanel = document.getElementById('floodZonesPanel');
+            if (oldPanel) oldPanel.remove();
+
+            const statusEl = document.getElementById('locationStatus');
+            statusEl.innerHTML = '🌊 Fetching flood-prone areas...';
 
             try {
-                alert('🔍 Searching for nearby safe places...');
-                const response = await fetch(`https://family-8cy0.onrender.com/api/safe-places?lat=${lat}&lng=${lng}`);
-                const data = await response.json();
+                const url = `https://family-8cy0.onrender.com/api/flood-zones?lat=${lat}&lng=${lng}`;
+                const res = await fetch(url);
+                const data = await res.json();
 
                 if (!data.success) {
-                    alert('Unable to find safe places.');
+                    statusEl.innerHTML = '❌ ' + (data.message || 'Failed to load flood zones');
+                    alert('Failed to load flood zones:\n' + (data.message || 'Unknown error'));
                     return;
                 }
 
-                safePlaceMarkers.forEach(m => map.removeLayer(m));
-                safePlaceMarkers = [];
-
-                data.places.forEach(function (place) {
-                    const marker = L.marker([place.latitude, place.longitude]).addTo(map);
-                    marker.bindPopup(`
-                        <div style="min-width:250px">
-                            <h3>${place.icon} ${escapeHTML(place.name)}</h3>
-                            <p><strong>Type:</strong> ${place.type}</p>
-                            <p><strong>Address:</strong> ${escapeHTML(place.address)}</p>
-                            <p><strong>Coordinates:</strong><br>${place.latitude.toFixed(6)}, ${place.longitude.toFixed(6)}</p>
-                            <a href="https://www.openstreetmap.org/directions?from=${lat},${lng}&to=${place.latitude},${place.longitude}" target="_blank" style="display:inline-block;background:#2563eb;color:white;padding:10px 15px;border-radius:6px;text-decoration:none;margin-top:8px;">🧭 Get Directions</a>
-                        </div>
-                    `);
-                    safePlaceMarkers.push(marker);
-                });
-
-                if (safePlaceMarkers.length > 0) {
-                    const group = L.featureGroup([userMarker].concat(safePlaceMarkers));
-                    map.fitBounds(group.getBounds(), { padding: [60, 60] });
+                if (data.zones.length === 0) {
+                    statusEl.innerHTML = '✅ No flood-prone areas found within 10 km.';
+                    alert('✅ No flood-prone areas found within 10 km.\nYour area looks safe.');
+                    return;
                 }
 
-                alert(`✅ Found ${data.count} nearby safe places.`);
-            } catch (error) {
-                console.error(error);
-                alert('❌ Backend connection failed.\nPlease check your Render backend.');
+                const colorMap = {
+                    High:   { fill: '#dc2626', stroke: '#991b1b' },
+                    Medium: { fill: '#f97316', stroke: '#c2410c' },
+                    Low:    { fill: '#eab308', stroke: '#a16207' }
+                };
+
+                data.zones.forEach((zone, i) => {
+                    const color = colorMap[zone.risk] || colorMap.Medium;
+
+                    const radiusMeters =
+                        zone.risk === 'High'   ? 800 :
+                        zone.risk === 'Medium' ? 500 : 300;
+
+                    const circle = L.circle([zone.latitude, zone.longitude], {
+                        radius: radiusMeters,
+                        color: color.stroke,
+                        fillColor: color.fill,
+                        fillOpacity: 0.20,
+                        weight: 2,
+                        dashArray: '5,5'
+                    }).addTo(map);
+
+                    const marker = L.marker([zone.latitude, zone.longitude], {
+                        icon: L.divIcon({
+                            className: '',
+                            html: `
+                                <div style="background:${color.fill};color:white;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.35);">${zone.icon}</div>
+                            `,
+                            iconSize: [42, 42],
+                            iconAnchor: [21, 21]
+                        })
+                    }).addTo(map);
+
+                    marker.bindPopup(`
+                        <div style="min-width:230px">
+                            <h3 style="margin-bottom:6px;">${zone.icon} ${escapeHTML(zone.name)}</h3>
+                            <p style="margin:4px 0;"><strong>Type:</strong> ${zone.kind}</p>
+                            <p style="margin:4px 0;"><strong>Risk Level:</strong> <span style="background:${color.fill};color:white;padding:2px 8px;border-radius:5px;font-size:12px;font-weight:bold;">${zone.risk}</span></p>
+                            <p style="margin:4px 0;"><strong>Distance:</strong> ${zone.distance_km} km</p>
+                        </div>
+                    `);
+
+                    floodZoneLayers.push(marker);
+                    floodCircles.push(circle);
+                });
+
+                const allLayers = [userMarker].concat(floodZoneLayers, floodCircles);
+                const group = L.featureGroup(allLayers);
+                map.fitBounds(group.getBounds(), { padding: [50, 50] });
+
+                const panel = document.createElement('div');
+                panel.id = 'floodZonesPanel';
+                panel.className = 'card';
+                panel.style.marginTop = '20px';
+
+                const highCount   = data.zones.filter(z => z.risk === 'High').length;
+                const mediumCount = data.zones.filter(z => z.risk === 'Medium').length;
+                const lowCount    = data.zones.filter(z => z.risk === 'Low').length;
+
+                let html = `
+                    <h2>🌊 Flood-Prone Areas Nearby (${data.zones.length})</h2>
+                    <p style="color:#64748b; font-size:13px; margin-top:6px;">
+                        Real flood-risk data from OpenStreetMap + live weather.
+                    </p>
+                    <div style="display:flex; gap:12px; margin-top:14px; flex-wrap:wrap;">
+                        <span style="background:#fef2f2; color:#991b1b; padding:6px 12px; border-radius:8px; font-size:13px; font-weight:bold;">🔴 High: ${highCount}</span>
+                        <span style="background:#fff7ed; color:#9a3412; padding:6px 12px; border-radius:8px; font-size:13px; font-weight:bold;">🟠 Medium: ${mediumCount}</span>
+                        <span style="background:#fefce8; color:#854d0e; padding:6px 12px; border-radius:8px; font-size:13px; font-weight:bold;">🟡 Low: ${lowCount}</span>
+                    </div>
+                    <br>
+                `;
+
+                data.zones.forEach((z, i) => {
+                    const color = colorMap[z.risk] || colorMap.Medium;
+                    html += `
+                        <div style="display:flex; justify-content:space-between; align-items:center;padding:12px; border-bottom:1px solid #e5e7eb;">
+                            <div>
+                                <div style="font-weight:bold;">${z.icon} ${escapeHTML(z.name)}</div>
+                                <div style="font-size:13px; color:#64748b; margin-top:4px;">${z.kind} • ${z.distance_km} km away</div>
+                            </div>
+                            <div style="text-align:right; min-width:110px;">
+                                <span style="background:${color.fill}; color:white;padding:3px 10px; border-radius:6px;font-size:12px; font-weight:bold;">${z.risk}</span>
+                                <br>
+                                <button class="btn" style="padding:6px 10px; font-size:12px; margin-top:6px;" onclick="focusFloodZone(${i})">📍 Show</button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                panel.innerHTML = html;
+
+                const mapDiv = document.getElementById('map');
+                mapDiv.parentNode.insertBefore(panel, mapDiv.nextSibling);
+
+                window.currentFloodZones = data.zones;
+
+                statusEl.innerHTML = `✅ Found ${data.zones.length} flood-prone areas nearby.`;
+                alert(`🌊 Found ${data.zones.length} flood-prone area${data.zones.length > 1 ? 's' : ''}.\n\n🔴 High: ${highCount}\n🟠 Medium: ${mediumCount}\n🟡 Low: ${lowCount}`);
+
+            } catch (err) {
+                console.error('Flood zones error:', err);
+                statusEl.innerHTML = '❌ Backend connection failed.';
+                alert('❌ Could not fetch flood zones.\n' + err.message);
             }
+        }
+
+        function focusFloodZone(index) {
+            if (!window.currentFloodZones || !window.currentFloodZones[index]) return;
+            const z = window.currentFloodZones[index];
+            map.setView([z.latitude, z.longitude], 16);
+            if (floodZoneLayers[index]) floodZoneLayers[index].openPopup();
+        }
+
+        function focusSafePlace(index) {
+            if (!window.currentSafePlaces || !window.currentSafePlaces[index]) return;
+            const p = window.currentSafePlaces[index];
+            map.setView([p.latitude, p.longitude], 17);
+            if (safePlaceMarkers[index]) safePlaceMarkers[index].openPopup();
         }
 
         function escapeHTML(str) {
@@ -950,6 +1858,134 @@
                 const chars = { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' };
                 return chars[tag] || tag;
             });
+        }
+
+        /* =====================================================
+           HAZARD DETECTION FROM LIVE WEATHER
+        ===================================================== */
+        let currentHazards = [];
+
+        function detectHazards(weatherCurrent, weatherDaily) {
+            const hazards = [];
+
+            const rain = weatherCurrent.precipitation;
+            const wind = weatherCurrent.wind_speed_10m;
+            const temp = weatherCurrent.temperature_2m;
+            const code = weatherCurrent.weather_code;
+
+            if (rain >= 10 || (weatherDaily && weatherDaily.precipitation_sum[1] >= 30)) {
+                hazards.push({
+                    icon: '🌊',
+                    name: 'Flood Risk',
+                    level: 'High',
+                    color: '#dc2626',
+                    reason: rain >= 10
+                        ? `Heavy rain currently: ${rain} mm`
+                        : `Forecast: ${weatherDaily.precipitation_sum[1]} mm rain expected`
+                });
+            } else if (rain >= 2) {
+                hazards.push({
+                    icon: '🌊',
+                    name: 'Flood Risk',
+                    level: 'Medium',
+                    color: '#f97316',
+                    reason: `Moderate rain currently: ${rain} mm`
+                });
+            }
+
+            if (wind >= 60 || [95, 96, 99].includes(code)) {
+                hazards.push({
+                    icon: '🌪️',
+                    name: 'Storm / Strong Wind',
+                    level: 'High',
+                    color: '#dc2626',
+                    reason: [95, 96, 99].includes(code)
+                        ? `Thunderstorm active (code ${code})`
+                        : `Wind at ${Math.round(wind)} km/h`
+                });
+            } else if (wind >= 35) {
+                hazards.push({
+                    icon: '🌪️',
+                    name: 'Strong Wind',
+                    level: 'Medium',
+                    color: '#f97316',
+                    reason: `Wind at ${Math.round(wind)} km/h`
+                });
+            }
+
+            if (temp >= 40) {
+                hazards.push({
+                    icon: '🔥',
+                    name: 'Fire / Heat Risk',
+                    level: 'High',
+                    color: '#dc2626',
+                    reason: `Extreme heat: ${Math.round(temp)}°C`
+                });
+            } else if (temp >= 35) {
+                hazards.push({
+                    icon: '🔥',
+                    name: 'Heat Risk',
+                    level: 'Medium',
+                    color: '#f97316',
+                    reason: `Hot weather: ${Math.round(temp)}°C`
+                });
+            }
+
+            if (temp <= 5) {
+                hazards.push({
+                    icon: '❄️',
+                    name: 'Cold Weather',
+                    level: 'Medium',
+                    color: '#2563eb',
+                    reason: `Cold: ${Math.round(temp)}°C`
+                });
+            }
+
+            if ([45, 48].includes(code)) {
+                hazards.push({
+                    icon: '🌫️',
+                    name: 'Low Visibility (Fog)',
+                    level: 'Medium',
+                    color: '#f97316',
+                    reason: 'Foggy conditions detected'
+                });
+            }
+
+            return hazards;
+        }
+
+        function updateHazardCard(hazards) {
+            currentHazards = hazards;
+            document.getElementById('hazardCount').textContent = hazards.length;
+        }
+
+        function showHazardDetails() {
+            const modal = document.getElementById('hazardModal');
+            const list = document.getElementById('hazardModalList');
+
+            if (currentHazards.length === 0) {
+                list.innerHTML = `
+                    <div style="padding:20px; background:#ecfdf5; border-left:5px solid #16a34a;border-radius:10px; color:#065f46;">
+                        ✅ <strong>No active hazards</strong> — Weather conditions are normal at your location.
+                    </div>
+                `;
+            } else {
+                list.innerHTML = currentHazards.map(h => `
+                    <div style="padding:16px; background:#fff7ed; border-left:5px solid ${h.color};border-radius:10px; margin-bottom:12px;">
+                        <div style="font-size:18px; font-weight:bold; color:#334155;">${h.icon} ${h.name}</div>
+                        <div style="margin-top:6px;">
+                            <span style="background:${h.color}; color:white; padding:3px 10px;border-radius:6px; font-size:12px; font-weight:bold;">${h.level}</span>
+                        </div>
+                        <div style="margin-top:10px; color:#475569; font-size:14px;">${h.reason}</div>
+                    </div>
+                `).join('');
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        function closeHazardModal() {
+            document.getElementById('hazardModal').style.display = 'none';
         }
     </script>
 </body>
