@@ -1,0 +1,64 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Install Capacitor Dependencies
+        run: |
+          npm init -y
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+
+      - name: Prepare Web Directory
+        run: |
+          # Create a folder to hold the web assets
+          mkdir -p www
+          # Copy your index.html into the www folder
+          cp index.html www/
+          # If you have other assets (images, css), copy them too. For example:
+          # cp -r assets www/ 2>/dev/null || true
+
+      - name: Init Capacitor
+        run: |
+          npx cap init "GuardianX" "com.guardianx.app" --web-dir=www
+
+      - name: Add Android Platform
+        run: |
+          npx cap add android
+
+      - name: Sync Web Code to Android
+        run: |
+          npx cap sync
+
+      - name: Build Debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: guardianx-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
