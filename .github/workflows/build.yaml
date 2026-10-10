@@ -23,9 +23,10 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      # ⬇️ NEW: Install Android SDK
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      # ⬇️ Accept Android SDK licenses manually (skip the broken action)
+      - name: Accept Android SDK licenses
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       - name: Verify web assets
         run: |
@@ -46,12 +47,6 @@ jobs:
       - name: Sync Web Code to Android
         run: |
           npx cap sync
-
-      # ⬇️ NEW: Fix Gradle to use compatible Java version
-      - name: Set Gradle Java Home
-        run: |
-          echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
-          echo "org.gradle.jvmargs=-Xmx2048m" >> android/gradle.properties
 
       - name: Build Debug APK
         run: |
