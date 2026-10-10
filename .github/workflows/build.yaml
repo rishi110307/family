@@ -23,6 +23,10 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
+      # ⬇️ NEW: Install Android SDK
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Verify web assets
         run: |
           echo "Repo contents:"
@@ -43,11 +47,17 @@ jobs:
         run: |
           npx cap sync
 
+      # ⬇️ NEW: Fix Gradle to use compatible Java version
+      - name: Set Gradle Java Home
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
+          echo "org.gradle.jvmargs=-Xmx2048m" >> android/gradle.properties
+
       - name: Build Debug APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
