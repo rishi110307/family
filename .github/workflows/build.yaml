@@ -23,16 +23,13 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      # ⬇️ Accept Android SDK licenses manually (skip the broken action)
       - name: Accept Android SDK licenses
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       - name: Verify web assets
         run: |
-          echo "Repo contents:"
           ls -la
-          echo "www folder contents:"
           ls -la www/
 
       - name: Install Capacitor Dependencies
@@ -47,6 +44,50 @@ jobs:
       - name: Sync Web Code to Android
         run: |
           npx cap sync
+
+      # ⬇️ FIX: Force Kotlin versions to align across all modules
+      - name: Fix Kotlin version conflicts
+        run: |
+          cd android
+          # Add resolution strategy to the project-level build.gradle
+          python3 <<'EOF'
+          import re
+
+          # 1. Patch android/build.gradle (project root of the android project)
+          with open('build.gradle', 'r') as f:
+              content = f.read()
+
+          # Ensure repositories include google() and mavenCentral()
+          if 'mavenCentral()' not in content:
+              content = content.replace(
+                  'repositories {',
+                  'repositories {\n        mavenCentral()',
+                  1
+              )
+
+          # Add resolution strategy if not present
+          if 'kotlin-stdlib' not in content:
+              content += """
+
+          // Force single Kotlin version to fix duplicate class errors
+          allprojects {
+              configurations.all {
+                  resolutionStrategy {
+                      force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
+                      force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22'
+                      force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22'
+                  }
+              }
+          }
+          """
+
+          with open('build.gradle', 'w') as f:
+              f.write(content)
+
+          print("Patched android/build.gradle")
+          print("----")
+          print(open('build.gradle').read())
+          EOF
 
       - name: Build Debug APK
         run: |
