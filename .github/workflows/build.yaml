@@ -16,7 +16,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -24,23 +23,17 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
+      - name: Verify web assets
+        run: |
+          echo "Repo contents:"
+          ls -la
+          echo "www folder contents:"
+          ls -la www/
+
       - name: Install Capacitor Dependencies
         run: |
           npm init -y
           npm install @capacitor/core @capacitor/cli @capacitor/android
-
-      - name: Prepare Web Directory
-        run: |
-          # Create a folder to hold the web assets
-          mkdir -p www
-          # Copy your index.html into the www folder
-          cp index.html www/
-          # If you have other assets (images, css), copy them too. For example:
-          # cp -r assets www/ 2>/dev/null || true
-
-      - name: Init Capacitor
-        run: |
-          npx cap init "GuardianX" "com.guardianx.app" --web-dir=www
 
       - name: Add Android Platform
         run: |
